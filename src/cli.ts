@@ -13,7 +13,7 @@ const args = process.argv.slice(2);
 
 if (args.includes('--help') || args.includes('-h')) {
   console.log(`
-  Agent Press — Newspaper-style reports for your AI coding sessions
+  The Agent Press — Newspaper-style reports for your AI coding sessions
 
   Usage: agent-press [options] [YYYY-MM-DD]
 
@@ -113,7 +113,7 @@ function parseOpts(): CliOpts {
 
 const opts = parseOpts();
 console.log('');
-console.log(`  ✦ Agent Press — ${opts.label}`);
+console.log(`  ✦ The Agent Press — ${opts.label}`);
 console.log('');
 
 try {

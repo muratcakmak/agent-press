@@ -48,13 +48,13 @@ export function generateHtml(data: ReportData): string {
     --fg: oklch(0.88 0 0);
     --fg-muted: oklch(0.62 0 0);
     --fg-dim: oklch(0.50 0 0);
-    --accent: oklch(0.62 0.2 265);
+    --accent: oklch(0.75 0.15 75);
     --border: oklch(1 0 0 / 8%);
     --border-strong: oklch(1 0 0 / 15%);
-    --chart-high: oklch(0.65 0.18 265);
-    --chart-med: oklch(0.55 0.15 265);
-    --chart-low: oklch(0.45 0.12 265);
-    --chart-min: oklch(0.30 0.06 265);
+    --chart-high: oklch(0.78 0.14 75);
+    --chart-med: oklch(0.65 0.12 75);
+    --chart-low: oklch(0.50 0.08 75);
+    --chart-min: oklch(0.30 0.04 75);
     --serif: 'Instrument Serif', Georgia, 'Times New Roman', serif;
     --sans: 'Inter', -apple-system, system-ui, sans-serif;
     --mono: 'JetBrains Mono', 'SF Mono', 'Fira Code', monospace;

@@ -193,9 +193,16 @@ export function generateHtml(data: ReportData): string {
     font-size: var(--text-base);
     line-height: 1.75;
     color: var(--fg);
-    max-width: 65ch;
   }
   .article-body p { margin-bottom: 0.85rem; }
+
+  /* Lead story spans full width in two columns on desktop */
+  .lead-story .article-body {
+    column-count: 2;
+    column-gap: 2.5rem;
+    column-rule: 1px solid var(--border);
+  }
+  @media (max-width: 640px) { .lead-story .article-body { column-count: 1; } }
 
   /* ── Lead story drop cap ── */
   .lead-story .article-body p:first-child::first-letter {
@@ -313,6 +320,15 @@ export function generateHtml(data: ReportData): string {
   }
   .daily-bar-val { font-family: var(--mono); font-size: var(--text-xs); color: var(--fg-dim); font-variant-numeric: tabular-nums; }
   .daily-bar-label { font-family: var(--mono); font-size: var(--text-xs); color: var(--fg-dim); }
+
+  /* ── Two-column grid ── */
+  .grid-2col {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 2.5rem;
+    align-items: start;
+  }
+  @media (max-width: 640px) { .grid-2col { grid-template-columns: 1fr; gap: 0; } }
 
   /* ── Divider ── */
   .divider {
@@ -487,70 +503,72 @@ function renderContent(data: ReportData, hourlyMax: number): string {
 
     <div class="divider" aria-hidden="true">— ✦ —</div>
 
-    <!-- The Forecast -->
-    ${n.forecast ? `
-    <article class="article">
-      <h3>The Forecast</h3>
-      <div class="article-body">
-        ${narrativeParagraphs(n.forecast)}
-      </div>
-      <div class="data-aside" role="img" aria-label="${esc(hourlyAriaLabel(weatherReport.hourly))}">
-        <div class="data-aside-label">Peak Hours</div>
-        <div class="hourly-chart" aria-hidden="true">
-          ${weatherReport.hourly.map((v, i) => {
-            const h = Math.max((v / hourlyMax) * 100, v > 0 ? 5 : 1);
-            const intensity = v / hourlyMax;
-            const color = intensity > 0.75 ? 'var(--chart-high)' : intensity > 0.5 ? 'var(--chart-med)' : intensity > 0.25 ? 'var(--chart-low)' : 'var(--chart-min)';
-            return `<div class="hourly-bar" style="height:${h}%;background:${color}" title="${i}:00 — ${v} sessions"></div>`;
-          }).join('')}
+    <!-- Two-column grid: Forecast + Tool Shed -->
+    <div class="grid-2col">
+      ${n.forecast ? `
+      <article class="article">
+        <h3>The Forecast</h3>
+        <div class="article-body">
+          ${narrativeParagraphs(n.forecast)}
         </div>
-        <div class="hourly-labels" aria-hidden="true"><span>00</span><span>06</span><span>12</span><span>18</span><span>23</span></div>
-      </div>
-    </article>` : ''}
-
-    <!-- The Tool Shed -->
-    ${n.toolShed ? `
-    <article class="article">
-      <h3>The Tool Shed</h3>
-      <div class="article-body">
-        ${narrativeParagraphs(n.toolShed)}
-      </div>
-      ${editorRoundup.length > 0 ? `
-      <div class="data-aside" role="img" aria-label="${esc(editorAriaLabel)}">
-        <div class="data-aside-label">Editor Usage</div>
-        <div aria-hidden="true">
-        ${editorRoundup.map(e => `
-          <div class="bar-row">
-            <span class="bar-label">${esc(e.label)}</span>
-            <span class="bar-track"><span class="bar-fill" style="width:${Math.round((e.count / editorMaxCount) * 100)}%;background:${e.color}"></span></span>
-            <span class="bar-value">${e.count}</span>
+        <div class="data-aside" role="img" aria-label="${esc(hourlyAriaLabel(weatherReport.hourly))}">
+          <div class="data-aside-label">Peak Hours</div>
+          <div class="hourly-chart" aria-hidden="true">
+            ${weatherReport.hourly.map((v, i) => {
+              const h = Math.max((v / hourlyMax) * 100, v > 0 ? 5 : 1);
+              const intensity = v / hourlyMax;
+              const color = intensity > 0.75 ? 'var(--chart-high)' : intensity > 0.5 ? 'var(--chart-med)' : intensity > 0.25 ? 'var(--chart-low)' : 'var(--chart-min)';
+              return `<div class="hourly-bar" style="height:${h}%;background:${color}" title="${i}:00 — ${v} sessions"></div>`;
+            }).join('')}
           </div>
-        `).join('')}
+          <div class="hourly-labels" aria-hidden="true"><span>00</span><span>06</span><span>12</span><span>18</span><span>23</span></div>
         </div>
-      </div>` : ''}
-    </article>` : ''}
+      </article>` : ''}
 
-    <!-- The Markets -->
-    ${markets.totalCost > 0 ? `
-    <article class="article">
-      <h3>The Markets</h3>
-      <div class="article-body">
-        <p>Total estimated spend: <strong style="font-family:var(--mono)">${esc(fmtCost(markets.totalCost))}</strong> (${esc(fmtCost(markets.costPerSession))}/session).
-        ${markets.byEditor.length > 0 ? markets.byEditor.map(e => `${esc(e.label)}: ${esc(fmtCost(e.cost))}`).join(' · ') + '.' : ''}</p>
-      </div>
-    </article>` : ''}
+      ${n.toolShed ? `
+      <article class="article">
+        <h3>The Tool Shed</h3>
+        <div class="article-body">
+          ${narrativeParagraphs(n.toolShed)}
+        </div>
+        ${editorRoundup.length > 0 ? `
+        <div class="data-aside" role="img" aria-label="${esc(editorAriaLabel)}">
+          <div class="data-aside-label">Editor Usage</div>
+          <div aria-hidden="true">
+          ${editorRoundup.map(e => `
+            <div class="bar-row">
+              <span class="bar-label">${esc(e.label)}</span>
+              <span class="bar-track"><span class="bar-fill" style="width:${Math.round((e.count / editorMaxCount) * 100)}%;background:${e.color}"></span></span>
+              <span class="bar-value">${e.count}</span>
+            </div>
+          `).join('')}
+          </div>
+        </div>` : ''}
+      </article>` : ''}
+    </div>
 
-    <!-- Sports Page -->
-    ${n.sportsPage ? `
-    <article class="article">
-      <h3>Sports Page</h3>
-      <div class="article-body">
-        ${narrativeParagraphs(n.sportsPage)}
-      </div>
-      <div class="streak-badges" role="list" aria-label="Coding streaks">
-        <div class="streak-badge" role="listitem"><strong>${sports.currentStreak}d</strong> streak</div>
-        <div class="streak-badge" role="listitem"><strong>${sports.longestStreak}d</strong> longest</div>
-        <div class="streak-badge" role="listitem">Top <strong>${100 - sports.todayPercentile}%</strong></div>
-      </div>
-    </article>` : ''}`;
+    <!-- Two-column grid: Markets + Sports -->
+    <div class="grid-2col">
+      ${markets.totalCost > 0 ? `
+      <article class="article">
+        <h3>The Markets</h3>
+        <div class="article-body">
+          <p>Total estimated spend: <strong style="font-family:var(--mono)">${esc(fmtCost(markets.totalCost))}</strong> (${esc(fmtCost(markets.costPerSession))}/session).
+          ${markets.byEditor.length > 0 ? markets.byEditor.map(e => `${esc(e.label)}: ${esc(fmtCost(e.cost))}`).join(' · ') + '.' : ''}</p>
+        </div>
+      </article>` : ''}
+
+      ${n.sportsPage ? `
+      <article class="article">
+        <h3>Sports Page</h3>
+        <div class="article-body">
+          ${narrativeParagraphs(n.sportsPage)}
+        </div>
+        <div class="streak-badges" role="list" aria-label="Coding streaks">
+          <div class="streak-badge" role="listitem"><strong>${sports.currentStreak}d</strong> streak</div>
+          <div class="streak-badge" role="listitem"><strong>${sports.longestStreak}d</strong> longest</div>
+          <div class="streak-badge" role="listitem">Top <strong>${100 - sports.todayPercentile}%</strong></div>
+        </div>
+      </article>` : ''}
+    </div>`;
 }

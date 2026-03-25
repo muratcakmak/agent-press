@@ -5,21 +5,22 @@ import path from 'path';
 import os from 'os';
 import { generateReport } from './report-data.js';
 import { generateHtml } from './report-html.js';
+import type { CliOpts, RangeType } from './types.js';
 
 const REPORTS_DIR = path.join(os.homedir(), '.agent-press', 'reports');
 
 const args = process.argv.slice(2);
 
-function localToday() {
+function localToday(): string {
   const n = new Date();
   return `${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, '0')}-${String(n.getDate()).padStart(2, '0')}`;
 }
 
-function toLocalDateStr(d) {
+function toLocalDateStr(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
-function parseOpts() {
+function parseOpts(): CliOpts {
   const today = localToday();
 
   if (args.includes('--week')) {
@@ -41,7 +42,7 @@ function parseOpts() {
 
   if (args.includes('--last-week')) {
     const todayDate = new Date(today + 'T00:00:00');
-    const dow = todayDate.getDay(); // 0=Sun
+    const dow = todayDate.getDay();
     const daysToMonday = dow === 0 ? 6 : dow - 1;
     const thisMonday = new Date(todayDate);
     thisMonday.setDate(todayDate.getDate() - daysToMonday);
@@ -64,7 +65,7 @@ function parseOpts() {
   if (args.includes('--month')) {
     const todayDate = new Date(today + 'T00:00:00');
     const prevMonth = new Date(todayDate.getFullYear(), todayDate.getMonth() - 1, 1);
-    const lastDay = new Date(todayDate.getFullYear(), todayDate.getMonth(), 0); // last day of prev month
+    const lastDay = new Date(todayDate.getFullYear(), todayDate.getMonth(), 0);
     const monthLabel = prevMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
     const monthSlug = `${prevMonth.getFullYear()}-${String(prevMonth.getMonth() + 1).padStart(2, '0')}`;
     return {
@@ -76,7 +77,6 @@ function parseOpts() {
     };
   }
 
-  // Single day (default or YYYY-MM-DD arg)
   const dateArg = args.find(a => /^\d{4}-\d{2}-\d{2}$/.test(a));
   const dayStr = dateArg || today;
   const date = new Date(dayStr + 'T00:00:00');
@@ -91,7 +91,7 @@ function parseOpts() {
 }
 
 const opts = parseOpts();
-const titles = { day: 'The Daily Agent', week: 'The Weekly Agent', month: 'The Monthly Agent' };
+const titles: Record<RangeType, string> = { day: 'The Daily Agent', week: 'The Weekly Agent', month: 'The Monthly Agent' };
 
 console.log('');
 console.log(`  ✦ ${titles[opts.rangeType]} — ${opts.label}`);
@@ -114,8 +114,9 @@ try {
 
   const open = await import('open');
   await open.default(outPath);
-} catch (err) {
-  console.error(`  ✗ Error: ${err.message}`);
-  if (err.stack) console.error(err.stack);
+} catch (err: unknown) {
+  const e = err as Error;
+  console.error(`  ✗ Error: ${e.message}`);
+  if (e.stack) console.error(e.stack);
   process.exit(1);
 }

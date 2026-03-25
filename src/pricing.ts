@@ -1,20 +1,20 @@
 import { createRequire } from 'module';
+import type { ModelPricingEntry } from './types.js';
+
 const require = createRequire(import.meta.url);
-const _raw = require('./pricing.json');
+const _raw: Record<string, ModelPricingEntry | Record<string, unknown>> = require('./pricing.json');
 
-const MODEL_PRICING = Object.fromEntries(
+const MODEL_PRICING: Record<string, ModelPricingEntry> = Object.fromEntries(
   Object.entries(_raw).filter(([k]) => !k.startsWith('_'))
-);
+) as Record<string, ModelPricingEntry>;
 
-export function normalizeModelName(name) {
+export function normalizeModelName(name: string | null | undefined): string | null {
   if (!name) return null;
   let n = name.toLowerCase().trim();
 
-  // Strip provider prefixes
   const slashIdx = n.lastIndexOf('/');
   if (slashIdx !== -1) n = n.substring(slashIdx + 1);
 
-  // Strip dot-delimited provider prefixes
   const dotParts = n.split('.');
   if (dotParts.length > 1) {
     const prefixes = dotParts.slice(0, -1);
@@ -32,11 +32,9 @@ export function normalizeModelName(name) {
     if (rev) candidates.push(`${rev[1]}-${rev[4]}-${rev[2]}-${rev[3]}`);
   }
 
-  // Exact match
   for (const c of candidates) {
     if (MODEL_PRICING[c]) return c;
   }
-  // Strip date suffix
   for (const c of candidates) {
     const withoutDate = c.replace(/-\d{4}-?\d{2}-?\d{2}$/, '');
     if (MODEL_PRICING[withoutDate]) return withoutDate;
@@ -45,10 +43,9 @@ export function normalizeModelName(name) {
     const withoutQual = c.replace(/-(thinking|high|xhigh|preview|latest)(-thinking|-high|-xhigh|-preview)*/g, '');
     if (withoutQual !== c && MODEL_PRICING[withoutQual]) return withoutQual;
   }
-  // Fuzzy startsWith
   const keys = Object.keys(MODEL_PRICING);
   for (const c of candidates) {
-    let best = null;
+    let best: string | null = null;
     for (const key of keys) {
       if (c.startsWith(key) && (!best || key.length > best.length)) best = key;
     }
@@ -57,7 +54,13 @@ export function normalizeModelName(name) {
   return null;
 }
 
-export function calculateCost(modelName, inputTokens, outputTokens, cacheRead, cacheWrite) {
+export function calculateCost(
+  modelName: string | null | undefined,
+  inputTokens: number | undefined,
+  outputTokens: number | undefined,
+  cacheRead: number | undefined,
+  cacheWrite: number | undefined,
+): number | null {
   const key = normalizeModelName(modelName);
   if (!key) return null;
   const pricing = MODEL_PRICING[key];

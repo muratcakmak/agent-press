@@ -1,16 +1,17 @@
 import { fmt, fmtCost } from './report-data.js';
+import type { ReportData, RangeType } from './types.js';
 
-function esc(str) {
+function esc(str: unknown): string {
   return String(str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
-const MASTHEAD = {
+const MASTHEAD: Record<RangeType, { title: string; tagline: string }> = {
   day:   { title: 'The Daily Agent',   tagline: '"All the Code That\'s Fit to Ship"' },
   week:  { title: 'The Weekly Agent',  tagline: '"Your Week in Code, Front to Back"' },
   month: { title: 'The Monthly Agent', tagline: '"A Month of Code in Review"' },
 };
 
-export function generateHtml(data) {
+export function generateHtml(data: ReportData): string {
   const { rangeType, rangeLabel, editionNumber, frontPage, context } = data;
   const mast = MASTHEAD[rangeType] || MASTHEAD.day;
   const hourlyMax = Math.max(...data.weatherReport.hourly, 1);
@@ -154,7 +155,7 @@ ${frontPage.sessions === 0 ? renderEmptyState() : renderContent(data, hourlyMax)
 </html>`;
 }
 
-function renderEmptyState() {
+function renderEmptyState(): string {
   return `
   <div class="empty-state">
     <h2>Slow News Day</h2>
@@ -162,7 +163,7 @@ function renderEmptyState() {
   </div>`;
 }
 
-function renderContent(data, hourlyMax) {
+function renderContent(data: ReportData, hourlyMax: number): string {
   const { rangeType, headline, frontPage, narratives, editorRoundup, projectBeat, dailyBreakdown, weatherReport, sports, markets } = data;
   const n = narratives || {};
   const editorMaxCount = Math.max(...editorRoundup.map(e => e.count), 1);

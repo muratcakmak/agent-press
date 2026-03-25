@@ -2,32 +2,95 @@ import path from 'path';
 import fs from 'fs';
 import os from 'os';
 import Database from 'better-sqlite3';
+import type { Chat, Message } from '../types.js';
 
-const HOME = os.homedir();
+const HOME: string = os.homedir();
 
-function getAppDataPath(appName) {
+interface VarintResult {
+  value: number;
+  offset: number;
+}
+
+interface LengthDelimitedResult {
+  bytes: Uint8Array;
+  offset: number;
+}
+
+interface SkipResult {
+  offset: number;
+}
+
+interface OfflineMeta {
+  title: string | null;
+  folder: string | null;
+  bubbleCount: number;
+  createdAt: number | null;
+  lastUpdatedAt: number | null;
+}
+
+interface BrainStep {
+  role?: string;
+  type?: string;
+  content?: string;
+  text?: string;
+}
+
+interface BrainData {
+  id?: string;
+  cascadeId?: string;
+  title?: string;
+  summary?: string;
+  createdTime?: string;
+  lastModifiedTime?: string;
+  stepCount?: number;
+  steps?: BrainStep[];
+}
+
+interface AntigravityChat extends Chat {
+  _brainData?: BrainData;
+}
+
+interface CascadeEntry {
+  cascadeId?: string;
+  id?: string;
+  name?: string | null;
+  createdAt?: number | null;
+  lastUpdatedAt?: number | null;
+  bubbleCount?: number;
+}
+
+interface CascadeData {
+  allCascades?: CascadeEntry[];
+  cascades?: CascadeEntry[];
+}
+
+interface DbRow {
+  value: string | Buffer | Uint8Array | null;
+}
+
+function getAppDataPath(appName: string): string {
   if (process.platform === 'darwin') return path.join(HOME, 'Library', 'Application Support', appName);
   if (process.platform === 'win32') return path.join(HOME, 'AppData', 'Roaming', appName);
   return path.join(HOME, '.config', appName);
 }
 
-const ANTIGRAVITY_USER_DIR = path.join(getAppDataPath('Antigravity'), 'User');
-const ANTIGRAVITY_GLOBAL_STORAGE_DB = path.join(ANTIGRAVITY_USER_DIR, 'globalStorage', 'state.vscdb');
-const WORKSPACE_STORAGE_DIR = path.join(ANTIGRAVITY_USER_DIR, 'workspaceStorage');
-const ANTIGRAVITY_BRAIN_DIR = path.join(HOME, '.gemini', 'antigravity', 'brain');
+const ANTIGRAVITY_USER_DIR: string = path.join(getAppDataPath('Antigravity'), 'User');
+const ANTIGRAVITY_GLOBAL_STORAGE_DB: string = path.join(ANTIGRAVITY_USER_DIR, 'globalStorage', 'state.vscdb');
+const WORKSPACE_STORAGE_DIR: string = path.join(ANTIGRAVITY_USER_DIR, 'workspaceStorage');
+const ANTIGRAVITY_BRAIN_DIR: string = path.join(HOME, '.gemini', 'antigravity', 'brain');
 
-const TRAJECTORY_KEYS = [
+const TRAJECTORY_KEYS: string[] = [
   'antigravityUnifiedStateSync.trajectorySummaries',
   'unifiedStateSync.trajectorySummaries',
 ];
 
-export const name = 'antigravity';
-export const label = 'Antigravity';
-export const color = '#a78bfa';
+export const name: string = 'antigravity';
+export const label: string = 'Antigravity';
+export const color: string = '#a78bfa';
 
 // ── Protobuf helpers for offline trajectory parsing ──
 
-function readVarint(buf, offset) {
+function readVarint(buf: Uint8Array, offset: number): VarintResult | null {
   let value = 0, shift = 0, i = offset;
   while (i < buf.length) {
     const b = buf[i]; i++;
@@ -39,7 +102,7 @@ function readVarint(buf, offset) {
   return null;
 }
 
-function readLengthDelimited(buf, offset) {
+function readLengthDelimited(buf: Uint8Array, offset: number): LengthDelimitedResult | null {
   const lenRes = readVarint(buf, offset);
   if (!lenRes) return null;
   const start = lenRes.offset;
@@ -48,7 +111,7 @@ function readLengthDelimited(buf, offset) {
   return { bytes: buf.subarray(start, end), offset: end };
 }
 
-function skipField(buf, offset, wireType) {
+function skipField(buf: Uint8Array, offset: number, wireType: number): SkipResult | null {
   if (wireType === 0) { const v = readVarint(buf, offset); return v ? { offset: v.offset } : null; }
   if (wireType === 1) return offset + 8 <= buf.length ? { offset: offset + 8 } : null;
   if (wireType === 2) { const ld = readLengthDelimited(buf, offset); return ld ? { offset: ld.offset } : null; }
@@ -56,16 +119,16 @@ function skipField(buf, offset, wireType) {
   return null;
 }
 
-function bytesToUtf8(bytes) {
+function bytesToUtf8(bytes: Uint8Array): string | null {
   try { return new TextDecoder('utf-8', { fatal: true }).decode(bytes); } catch { return null; }
 }
 
-function base64ToBytes(b64) {
+function base64ToBytes(b64: unknown): Uint8Array | null {
   try { return Uint8Array.from(Buffer.from(String(b64 || '').trim(), 'base64')); } catch { return null; }
 }
 
-function parseTimestampMessage(bytes) {
-  let seconds = null, nanos = 0, offset = 0;
+function parseTimestampMessage(bytes: Uint8Array): number | null {
+  let seconds: number | null = null, nanos = 0, offset = 0;
   while (offset < bytes.length) {
     const tagRes = readVarint(bytes, offset);
     if (!tagRes) return null;
@@ -88,7 +151,7 @@ function parseTimestampMessage(bytes) {
   return Math.round((seconds * 1000) + ((nanos < 1e9 ? nanos : 0) / 1e6));
 }
 
-function findTimestampInProto(bytes, maxDepth = 2, depth = 0) {
+function findTimestampInProto(bytes: Uint8Array, maxDepth: number = 2, depth: number = 0): number | null {
   const direct = parseTimestampMessage(bytes);
   if (direct) return direct;
   if (depth >= maxDepth) return null;
@@ -108,7 +171,7 @@ function findTimestampInProto(bytes, maxDepth = 2, depth = 0) {
   return null;
 }
 
-function* iterAllUtf8Strings(buf, maxDepth, depth = 0) {
+function* iterAllUtf8Strings(buf: Uint8Array, maxDepth: number, depth: number = 0): Generator<string> {
   if (depth > maxDepth) return;
   let offset = 0;
   while (offset < buf.length) {
@@ -126,7 +189,7 @@ function* iterAllUtf8Strings(buf, maxDepth, depth = 0) {
   }
 }
 
-function fileUriToPath(uri) {
+function fileUriToPath(uri: string): string | null {
   try {
     const parsed = new URL(uri);
     if (parsed.protocol !== 'file:') return null;
@@ -136,7 +199,7 @@ function fileUriToPath(uri) {
   } catch { return null; }
 }
 
-function extractFolderFromProto(bytes) {
+function extractFolderFromProto(bytes: Uint8Array): string | null {
   for (const s of iterAllUtf8Strings(bytes, 6)) {
     const match = s.match(/#?file:\/\/[^\s\x00-\x1f"]+/);
     if (!match) continue;
@@ -148,9 +211,9 @@ function extractFolderFromProto(bytes) {
   return null;
 }
 
-function extractOfflineMeta(summaryProtoBytes) {
-  let title = null, primaryCount = 0, secondaryCount = 0;
-  const timestamps = [];
+function extractOfflineMeta(summaryProtoBytes: Uint8Array): OfflineMeta {
+  let title: string | null = null, primaryCount = 0, secondaryCount = 0;
+  const timestamps: number[] = [];
   let offset = 0;
   while (offset < summaryProtoBytes.length) {
     const tagRes = readVarint(summaryProtoBytes, offset);
@@ -190,12 +253,12 @@ function extractOfflineMeta(summaryProtoBytes) {
   };
 }
 
-function readGlobalStateValue(key) {
+function readGlobalStateValue(key: string): string | null {
   if (!fs.existsSync(ANTIGRAVITY_GLOBAL_STORAGE_DB)) return null;
-  let db = null;
+  let db: Database.Database | null = null;
   try {
     db = new Database(ANTIGRAVITY_GLOBAL_STORAGE_DB, { readonly: true, fileMustExist: true });
-    const row = db.prepare('SELECT value FROM ItemTable WHERE key = ?').get(key);
+    const row = db.prepare('SELECT value FROM ItemTable WHERE key = ?').get(key) as DbRow | undefined;
     if (!row) return null;
     const v = row.value;
     if (typeof v === 'string') return v;
@@ -204,10 +267,10 @@ function readGlobalStateValue(key) {
   } catch { return null; } finally { if (db) db.close(); }
 }
 
-function buildOfflineMetaMap(outerValueBase64) {
+function buildOfflineMetaMap(outerValueBase64: string): Record<string, OfflineMeta> {
   const outerBytes = base64ToBytes(outerValueBase64);
   if (!outerBytes) return {};
-  const chats = {};
+  const chats: Record<string, OfflineMeta> = {};
   let offset = 0;
   while (offset < outerBytes.length) {
     const tagRes = readVarint(outerBytes, offset);
@@ -219,7 +282,7 @@ function buildOfflineMetaMap(outerValueBase64) {
     const entryLd = readLengthDelimited(outerBytes, offset);
     if (!entryLd) break;
     offset = entryLd.offset;
-    let composerId = null, summaryBase64 = null, eo = 0;
+    let composerId: string | null = null, summaryBase64: string | null = null, eo = 0;
     while (eo < entryLd.bytes.length) {
       const et = readVarint(entryLd.bytes, eo);
       if (!et) break;
@@ -260,13 +323,13 @@ function buildOfflineMetaMap(outerValueBase64) {
   return chats;
 }
 
-function getOfflineChats() {
+function getOfflineChats(): AntigravityChat[] {
   for (const key of TRAJECTORY_KEYS) {
     const value = readGlobalStateValue(key);
     if (!value) continue;
     const map = buildOfflineMetaMap(value);
-    const chats = Object.entries(map).map(([composerId, meta]) => ({
-      source: 'antigravity', composerId, name: meta.title || null,
+    const chats: AntigravityChat[] = Object.entries(map).map(([composerId, meta]) => ({
+      source: 'antigravity' as const, composerId, name: meta.title || null,
       createdAt: meta.createdAt || null, lastUpdatedAt: meta.lastUpdatedAt || null,
       mode: 'cascade', folder: meta.folder || null,
       bubbleCount: meta.bubbleCount || 0,
@@ -278,16 +341,16 @@ function getOfflineChats() {
 
 // ── Brain directory sessions ──
 
-function getBrainChats() {
+function getBrainChats(): AntigravityChat[] {
   if (!fs.existsSync(ANTIGRAVITY_BRAIN_DIR)) return [];
-  const chats = [];
+  const chats: AntigravityChat[] = [];
   try {
-    for (const file of fs.readdirSync(ANTIGRAVITY_BRAIN_DIR).filter(f => f.endsWith('.json'))) {
+    for (const file of fs.readdirSync(ANTIGRAVITY_BRAIN_DIR).filter((f: string) => f.endsWith('.json'))) {
       try {
-        const data = JSON.parse(fs.readFileSync(path.join(ANTIGRAVITY_BRAIN_DIR, file), 'utf-8'));
+        const data = JSON.parse(fs.readFileSync(path.join(ANTIGRAVITY_BRAIN_DIR, file), 'utf-8')) as BrainData;
         if (data.id || data.cascadeId) {
           chats.push({
-            source: 'antigravity', composerId: data.id || data.cascadeId,
+            source: 'antigravity' as const, composerId: (data.id || data.cascadeId) as string,
             name: data.title || data.summary || null,
             createdAt: data.createdTime ? new Date(data.createdTime).getTime() : null,
             lastUpdatedAt: data.lastModifiedTime ? new Date(data.lastModifiedTime).getTime() : null,
@@ -296,35 +359,35 @@ function getBrainChats() {
             _brainData: data,
           });
         }
-      } catch {}
+      } catch { /* skip malformed files */ }
     }
-  } catch {}
+  } catch { /* skip if directory unreadable */ }
   return chats;
 }
 
 // ── Workspace cascade data ──
 
-function getWorkspaceChats() {
+function getWorkspaceChats(): AntigravityChat[] {
   if (!fs.existsSync(WORKSPACE_STORAGE_DIR)) return [];
-  const chats = [];
+  const chats: AntigravityChat[] = [];
   for (const hash of fs.readdirSync(WORKSPACE_STORAGE_DIR)) {
     const dir = path.join(WORKSPACE_STORAGE_DIR, hash);
     const wsJson = path.join(dir, 'workspace.json');
     const stateDb = path.join(dir, 'state.vscdb');
     if (!fs.existsSync(wsJson) || !fs.existsSync(stateDb)) continue;
-    let folder = null;
-    try { folder = (JSON.parse(fs.readFileSync(wsJson, 'utf-8')).folder || '').replace('file://', ''); } catch { continue; }
+    let folder: string | null = null;
+    try { folder = ((JSON.parse(fs.readFileSync(wsJson, 'utf-8')) as { folder?: string }).folder || '').replace('file://', ''); } catch { continue; }
     try {
       const db = new Database(stateDb, { readonly: true });
       // Try cascade data keys
       for (const key of ['antigravity.cascadeData', 'windsurf.cascadeData']) {
-        const row = db.prepare('SELECT value FROM ItemTable WHERE key = ?').get(key);
+        const row = db.prepare('SELECT value FROM ItemTable WHERE key = ?').get(key) as DbRow | undefined;
         if (!row) continue;
-        const data = JSON.parse(row.value);
-        const cascades = data.allCascades || data.cascades || [];
+        const data = JSON.parse(row.value as string) as CascadeData;
+        const cascades: CascadeEntry[] = data.allCascades || data.cascades || [];
         for (const c of cascades) {
           chats.push({
-            source: 'antigravity', composerId: c.cascadeId || c.id,
+            source: 'antigravity' as const, composerId: (c.cascadeId || c.id) as string,
             name: c.name || null, createdAt: c.createdAt || null,
             lastUpdatedAt: c.lastUpdatedAt || null, mode: 'cascade',
             folder, bubbleCount: c.bubbleCount || 0,
@@ -332,16 +395,16 @@ function getWorkspaceChats() {
         }
       }
       db.close();
-    } catch {}
+    } catch { /* skip on error */ }
   }
   return chats;
 }
 
 // ── Adapter interface ──
 
-export function getChats() {
-  const seen = new Map();
-  const sources = [getOfflineChats(), getBrainChats(), getWorkspaceChats()];
+export function getChats(): Chat[] {
+  const seen = new Map<string, AntigravityChat>();
+  const sources: AntigravityChat[][] = [getOfflineChats(), getBrainChats(), getWorkspaceChats()];
   for (const chats of sources) {
     for (const chat of chats) {
       const existing = seen.get(chat.composerId);
@@ -360,11 +423,12 @@ export function getChats() {
   return Array.from(seen.values()).sort((a, b) => (b.lastUpdatedAt || 0) - (a.lastUpdatedAt || 0));
 }
 
-export function getMessages(chat) {
+export function getMessages(chat: Chat): Message[] {
   // Brain data has steps we can parse
-  if (chat._brainData?.steps) {
-    return chat._brainData.steps.filter(s => s.content || s.text).map(s => ({
-      role: s.role || (s.type === 'user' ? 'user' : 'assistant'),
+  const antigravityChat = chat as AntigravityChat;
+  if (antigravityChat._brainData?.steps) {
+    return antigravityChat._brainData.steps.filter((s: BrainStep) => s.content || s.text).map((s: BrainStep): Message => ({
+      role: (s.role || (s.type === 'user' ? 'user' : 'assistant')) as 'user' | 'assistant',
       content: s.content || s.text || '',
     }));
   }

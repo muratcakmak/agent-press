@@ -1,7 +1,8 @@
 import { execFileSync } from 'child_process';
 import { fmt, fmtCost } from './report-data.js';
+import type { ReportData, NarrativesOutput, ProjectSpotlight } from './types.js';
 
-const JSON_SCHEMA = JSON.stringify({
+const JSON_SCHEMA: string = JSON.stringify({
   type: 'object',
   properties: {
     leadStory: { type: 'string', description: '3-5 sentence lead paragraph summarizing the period. Witty, celebratory newspaper tone. Reference specific projects and numbers.' },
@@ -26,33 +27,39 @@ const JSON_SCHEMA = JSON.stringify({
 
 // ── AI CLI chain: try each in order, use first available ──
 
-const EXEC_OPTS = { encoding: 'utf-8', timeout: 120000, maxBuffer: 4 * 1024 * 1024 };
-const CHECK_OPTS = { encoding: 'utf-8', timeout: 5000, stdio: ['pipe', 'pipe', 'pipe'] };
+interface AiCli {
+  name: string;
+  check: () => string;
+  run: (prompt: string) => string;
+}
 
-const AI_CLIS = [
+const EXEC_OPTS = { encoding: 'utf-8' as const, timeout: 120000, maxBuffer: 4 * 1024 * 1024 };
+const CHECK_OPTS = { encoding: 'utf-8' as const, timeout: 5000, stdio: ['pipe', 'pipe', 'pipe'] as ['pipe', 'pipe', 'pipe'] };
+
+const AI_CLIS: AiCli[] = [
   {
     name: 'Claude Code',
     check: () => execFileSync('claude', ['--version'], CHECK_OPTS),
-    run: (prompt) => execFileSync('claude', ['-p'], { ...EXEC_OPTS, input: prompt }),
+    run: (prompt: string) => execFileSync('claude', ['-p'], { ...EXEC_OPTS, input: prompt }),
   },
   {
     name: 'Codex',
     check: () => execFileSync('codex', ['--version'], CHECK_OPTS),
-    run: (prompt) => execFileSync('codex', ['exec', '-'], { ...EXEC_OPTS, input: prompt }),
+    run: (prompt: string) => execFileSync('codex', ['exec', '-'], { ...EXEC_OPTS, input: prompt }),
   },
   {
     name: 'Gemini CLI',
     check: () => execFileSync('gemini', ['--version'], CHECK_OPTS),
-    run: (prompt) => execFileSync('gemini', ['-p', prompt], EXEC_OPTS),
+    run: (prompt: string) => execFileSync('gemini', ['-p', prompt], EXEC_OPTS),
   },
   {
     name: 'OpenCode',
     check: () => execFileSync('opencode', ['--version'], CHECK_OPTS),
-    run: (prompt) => execFileSync('opencode', ['run', prompt], EXEC_OPTS),
+    run: (prompt: string) => execFileSync('opencode', ['run', prompt], EXEC_OPTS),
   },
 ];
 
-function findAvailableCli() {
+function findAvailableCli(): AiCli | null {
   for (const cli of AI_CLIS) {
     try {
       cli.check();
@@ -62,7 +69,7 @@ function findAvailableCli() {
   return null;
 }
 
-export async function generateNarratives(reportData) {
+export async function generateNarratives(reportData: ReportData): Promise<NarrativesOutput> {
   const cli = findAvailableCli();
 
   if (!cli) {
@@ -83,7 +90,7 @@ export async function generateNarratives(reportData) {
     // Extract JSON from the response
     const jsonMatch = result.match(/\{[\s\S]*\}/);
     if (!jsonMatch) throw new Error('No JSON found in response');
-    const parsed = JSON.parse(jsonMatch[0]);
+    const parsed: NarrativesOutput = JSON.parse(jsonMatch[0]);
     return parsed;
   } catch (err) {
     console.error(`  ⚠ ${cli.name} narrative generation failed, using templates`);
@@ -91,8 +98,8 @@ export async function generateNarratives(reportData) {
   }
 }
 
-function buildContext(data) {
-  const lines = [];
+function buildContext(data: ReportData): string {
+  const lines: string[] = [];
   const { rangeType, rangeLabel, frontPage, editorRoundup, projectBeat, modelWatch, toolTimes, markets, weatherReport, sports, taskStories, dailyBreakdown, context } = data;
 
   lines.push(`Period: ${rangeLabel} (${rangeType})`);
@@ -128,7 +135,7 @@ function buildContext(data) {
   lines.push(`Peak hour: ${weatherReport.peakLabel}`);
   lines.push(`Streak: ${sports.currentStreak}d current, ${sports.longestStreak}d longest`);
   if (sports.longestSession) lines.push(`Longest session: "${sports.longestSession.name || 'Untitled'}" (${sports.longestSession.bubbleCount} msgs, ${sports.longestSession.editorLabel})`);
-  if (sports.priciestSession?.cost > 0) lines.push(`Priciest session: "${sports.priciestSession.name || 'Untitled'}" (${fmtCost(sports.priciestSession.cost)})`);
+  if (sports.priciestSession?.cost && sports.priciestSession.cost > 0) lines.push(`Priciest session: "${sports.priciestSession.name || 'Untitled'}" (${fmtCost(sports.priciestSession.cost)})`);
   lines.push('');
 
   if (markets.totalCost > 0) {
@@ -137,7 +144,7 @@ function buildContext(data) {
     lines.push('');
   }
 
-  const byProject = {};
+  const byProject: Record<string, typeof taskStories> = {};
   for (const t of taskStories) {
     const key = t.project || 'Other';
     if (!byProject[key]) byProject[key] = [];
@@ -148,7 +155,7 @@ function buildContext(data) {
   for (const [project, sessions] of Object.entries(byProject)) {
     lines.push(`\n  [${project}] — ${sessions.length} sessions:`);
     for (const s of sessions.slice(0, 15)) {
-      const parts = [`    - "${s.name}"`];
+      const parts: string[] = [`    - "${s.name}"`];
       if (s.editorLabel) parts.push(`via ${s.editorLabel}`);
       if (s.model) parts.push(`(${s.model})`);
       if (s.bubbleCount) parts.push(`${s.bubbleCount} msgs`);
@@ -161,7 +168,7 @@ function buildContext(data) {
   return lines.join('\n');
 }
 
-function buildPrompt(data, context) {
+function buildPrompt(data: ReportData, context: string): string {
   const periodWord = data.rangeType === 'day' ? 'day' : data.rangeType === 'week' ? 'week' : 'month';
 
   return `You are the editor-in-chief of "The ${periodWord === 'day' ? 'Daily' : periodWord === 'week' ? 'Weekly' : 'Monthly'} Agent", a witty developer newspaper.
@@ -175,7 +182,7 @@ Tone: Playful and celebratory, like a sports writer covering a championship seas
 ${context}`;
 }
 
-function fallbackNarratives(data) {
+function fallbackNarratives(data: ReportData): NarrativesOutput {
   const { frontPage, editorRoundup, projectBeat, weatherReport, sports, rangeType, markets, taskStories } = data;
   const periodWord = rangeType === 'day' ? 'day' : rangeType === 'week' ? 'week' : 'month';
   const topEditor = editorRoundup[0];
@@ -188,7 +195,7 @@ function fallbackNarratives(data) {
   if (topProject) leadStory += ` The ${topProject.name} project saw the most action at ${topProject.count} sessions.`;
   if (frontPage.cost > 0) leadStory += ` An estimated ${fmtCost(frontPage.cost)} was spent, averaging ${fmtCost(markets.costPerSession)} per session.`;
 
-  const projectSpotlights = projectBeat.filter(p => p.count >= 2).map(p => {
+  const projectSpotlights: ProjectSpotlight[] = projectBeat.filter(p => p.count >= 2).map(p => {
     const sessions = taskStories.filter(t => t.project === p.name);
     const named = sessions.filter(s => s.name).slice(0, 3);
     let narrative = `${p.count} sessions in the ${p.name} project.`;
@@ -196,9 +203,9 @@ function fallbackNarratives(data) {
     return { project: p.name, narrative };
   });
 
-  const forecast = `Activity peaked at ${weatherReport.peakLabel}. ${frontPage.activeHours} distinct hours saw coding activity.`;
-  const toolShed = topEditor ? `${topEditor.label} was the primary tool, handling ${topEditor.pct}% of sessions.` : 'Multiple editors were used across the period.';
-  const sportsPage = `Current coding streak: ${sports.currentStreak} day${sports.currentStreak !== 1 ? 's' : ''}. Longest ever: ${sports.longestStreak} days.${sports.longestSession ? ` The longest session was "${sports.longestSession.name || 'Untitled'}" with ${sports.longestSession.bubbleCount} messages.` : ''}`;
+  const forecast: string = `Activity peaked at ${weatherReport.peakLabel}. ${frontPage.activeHours} distinct hours saw coding activity.`;
+  const toolShed: string = topEditor ? `${topEditor.label} was the primary tool, handling ${topEditor.pct}% of sessions.` : 'Multiple editors were used across the period.';
+  const sportsPage: string = `Current coding streak: ${sports.currentStreak} day${sports.currentStreak !== 1 ? 's' : ''}. Longest ever: ${sports.longestStreak} days.${sports.longestSession ? ` The longest session was "${sports.longestSession.name || 'Untitled'}" with ${sports.longestSession.bubbleCount} messages.` : ''}`;
 
   return { leadStory, projectSpotlights, forecast, toolShed, sportsPage };
 }

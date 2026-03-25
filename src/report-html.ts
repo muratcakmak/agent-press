@@ -19,9 +19,9 @@ function hourlyAriaLabel(hourly: number[]): string {
 }
 
 const MASTHEAD: Record<RangeType, { title: string; tagline: string }> = {
-  day:   { title: 'The Daily Agent',   tagline: '"All the Code That\'s Fit to Ship"' },
-  week:  { title: 'The Weekly Agent',  tagline: '"Your Week in Code, Front to Back"' },
-  month: { title: 'The Monthly Agent', tagline: '"A Month of Code in Review"' },
+  day:   { title: 'Agent Press',  tagline: '"All the Code That\'s Fit to Ship"' },
+  week:  { title: 'Agent Press',  tagline: '"Your Week in Code, Front to Back"' },
+  month: { title: 'Agent Press',  tagline: '"A Month of Code in Review"' },
 };
 
 export function generateHtml(data: ReportData): string {

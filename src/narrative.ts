@@ -171,7 +171,7 @@ function buildContext(data: ReportData): string {
 function buildPrompt(data: ReportData, context: string): string {
   const periodWord = data.rangeType === 'day' ? 'day' : data.rangeType === 'week' ? 'week' : 'month';
 
-  return `You are the editor-in-chief of "The ${periodWord === 'day' ? 'Daily' : periodWord === 'week' ? 'Weekly' : 'Monthly'} Agent", a witty developer newspaper.
+  return `You are the editor-in-chief of "Agent Press", a witty developer newspaper.
 
 Given this coding session data for ${data.rangeLabel}, write newspaper-style narratives. Be specific — reference actual project names, session titles, and numbers. Tell the STORY of what happened, not just the stats.
 

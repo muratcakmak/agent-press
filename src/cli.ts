@@ -11,8 +11,29 @@ const REPORTS_DIR = path.join(os.homedir(), '.agent-press', 'reports');
 
 const args = process.argv.slice(2);
 
-function localToday(): string {
+if (args.includes('--help') || args.includes('-h')) {
+  console.log(`
+  Agent Press — Newspaper-style reports for your AI coding sessions
+
+  Usage: agent-press [options] [YYYY-MM-DD]
+
+  Options:
+    (no args)       Yesterday's report (default)
+    YYYY-MM-DD      Report for a specific date
+    --week          Last 7 days
+    --last-week     Previous Monday–Sunday
+    --month         Last calendar month
+    --help, -h      Show this help
+
+  Reports saved to ~/.agent-press/reports/
+  AI narratives via: claude, codex, gemini, or opencode CLI
+`);
+  process.exit(0);
+}
+
+function localYesterday(): string {
   const n = new Date();
+  n.setDate(n.getDate() - 1);
   return `${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, '0')}-${String(n.getDate()).padStart(2, '0')}`;
 }
 
@@ -21,7 +42,7 @@ function toLocalDateStr(d: Date): string {
 }
 
 function parseOpts(): CliOpts {
-  const today = localToday();
+  const today = localYesterday();
 
   if (args.includes('--week')) {
     const end = new Date(today + 'T23:59:59.999');
@@ -91,10 +112,8 @@ function parseOpts(): CliOpts {
 }
 
 const opts = parseOpts();
-const titles: Record<RangeType, string> = { day: 'The Daily Agent', week: 'The Weekly Agent', month: 'The Monthly Agent' };
-
 console.log('');
-console.log(`  ✦ ${titles[opts.rangeType]} — ${opts.label}`);
+console.log(`  ✦ Agent Press — ${opts.label}`);
 console.log('');
 
 try {

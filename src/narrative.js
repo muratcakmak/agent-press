@@ -1,4 +1,4 @@
-import { execSync, execFileSync } from 'child_process';
+import { execFileSync } from 'child_process';
 import { fmt, fmtCost } from './report-data.js';
 
 const JSON_SCHEMA = JSON.stringify({
@@ -24,28 +24,64 @@ const JSON_SCHEMA = JSON.stringify({
   required: ['leadStory', 'projectSpotlights', 'forecast', 'toolShed', 'sportsPage'],
 });
 
+// ── AI CLI chain: try each in order, use first available ──
+
+const AI_CLIS = [
+  {
+    name: 'Claude Code',
+    cmd: 'claude',
+    check: () => execFileSync('claude', ['--version'], { encoding: 'utf-8', timeout: 5000, stdio: ['pipe', 'pipe', 'pipe'] }),
+    run: (prompt) => execFileSync('claude', ['-p'], { input: prompt, encoding: 'utf-8', timeout: 120000, maxBuffer: 4 * 1024 * 1024 }),
+  },
+  {
+    name: 'Codex',
+    cmd: 'codex',
+    check: () => execFileSync('codex', ['--version'], { encoding: 'utf-8', timeout: 5000, stdio: ['pipe', 'pipe', 'pipe'] }),
+    run: (prompt) => execFileSync('codex', ['exec', '-'], { input: prompt, encoding: 'utf-8', timeout: 120000, maxBuffer: 4 * 1024 * 1024 }),
+  },
+  {
+    name: 'Gemini CLI',
+    cmd: 'gemini',
+    check: () => execFileSync('gemini', ['--version'], { encoding: 'utf-8', timeout: 5000, stdio: ['pipe', 'pipe', 'pipe'] }),
+    run: (prompt) => execFileSync('gemini', ['-p', prompt], { encoding: 'utf-8', timeout: 120000, maxBuffer: 4 * 1024 * 1024 }),
+  },
+];
+
+function findAvailableCli() {
+  for (const cli of AI_CLIS) {
+    try {
+      cli.check();
+      return cli;
+    } catch { /* not available */ }
+  }
+  return null;
+}
+
 export async function generateNarratives(reportData) {
+  const cli = findAvailableCli();
+
+  if (!cli) {
+    console.log('  No AI CLI found — using template narratives');
+    console.log('  (Install any of: claude, codex, or gemini for AI-generated storytelling)');
+    return fallbackNarratives(reportData);
+  }
+
+  console.log(`  Using ${cli.name} for narratives...`);
+
   const context = buildContext(reportData);
   const prompt = buildPrompt(reportData, context);
+  const jsonPrompt = prompt + `\n\nRespond ONLY with valid JSON matching this schema (no markdown, no code blocks, just raw JSON):\n${JSON_SCHEMA}`;
 
   try {
-    // Use text output and ask Claude to return JSON in the response
-    const jsonPrompt = prompt + `\n\nRespond ONLY with valid JSON matching this schema (no markdown, no code blocks, just raw JSON):\n${JSON_SCHEMA}`;
+    const result = cli.run(jsonPrompt);
 
-    const result = execFileSync('claude', ['-p'], {
-      input: jsonPrompt,
-      encoding: 'utf-8',
-      timeout: 120000,
-      maxBuffer: 4 * 1024 * 1024,
-    });
-
-    // Extract JSON from the response (might have leading/trailing text)
+    // Extract JSON from the response
     const jsonMatch = result.match(/\{[\s\S]*\}/);
     if (!jsonMatch) throw new Error('No JSON found in response');
     const parsed = JSON.parse(jsonMatch[0]);
     return parsed;
   } catch (err) {
-    console.error(`  ⚠ Narrative generation failed, using templates`);
+    console.error(`  ⚠ ${cli.name} narrative generation failed, using templates`);
     return fallbackNarratives(reportData);
   }
 }
@@ -96,7 +132,6 @@ function buildContext(data) {
     lines.push('');
   }
 
-  // Session titles grouped by project (the meat for storytelling)
   const byProject = {};
   for (const t of taskStories) {
     const key = t.project || 'Other';
@@ -136,7 +171,7 @@ ${context}`;
 }
 
 function fallbackNarratives(data) {
-  const { frontPage, editorRoundup, projectBeat, weatherReport, sports, rangeType, rangeLabel, markets, taskStories } = data;
+  const { frontPage, editorRoundup, projectBeat, weatherReport, sports, rangeType, markets, taskStories } = data;
   const periodWord = rangeType === 'day' ? 'day' : rangeType === 'week' ? 'week' : 'month';
   const topEditor = editorRoundup[0];
   const topProject = projectBeat[0];

@@ -4,7 +4,7 @@
   "description": "Newspaper-style daily reports for your AI coding sessions. Reads from Claude Code, Cursor, OpenCode, and Antigravity.",
   "type": "module",
   "bin": {
-    "agent-press": "./src/cli.js"
+    "agent-press": "src/cli.js"
   },
   "files": [
     "src/"
@@ -26,9 +26,9 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/oguzhancakmak/agent-press"
+    "url": "git+https://github.com/muratcakmak/agent-press.git"
   },
-  "homepage": "https://github.com/oguzhancakmak/agent-press",
+  "homepage": "https://github.com/muratcakmak/agent-press",
   "dependencies": {
     "better-sqlite3": "^11.0.0",
     "open": "^10.0.0"

@@ -12,7 +12,7 @@ npx agent-press --last-week     # previous Mon–Sun
 npx agent-press --month         # last calendar month
 ```
 
-Generates an HTML file (e.g. `daily-agent-2026-03-24.html`) and opens it in your browser.
+Reports are saved to `~/.agent-press/reports/` and opened in your browser.
 
 ## Supported Editors
 
@@ -25,13 +25,14 @@ Reads session data directly from local storage — no API keys, no cloud, no set
 
 ## AI Narratives
 
-agent-press uses an AI coding CLI to generate witty, story-driven narratives about your sessions. It tries these CLIs in order and uses the first one available:
+agent-press uses an AI coding CLI to generate witty, story-driven narratives about your sessions. It tries these in order and uses the first one available:
 
 1. **Claude Code** (`claude -p`)
 2. **Codex** (`codex exec`)
 3. **Gemini CLI** (`gemini -p`)
+4. **OpenCode** (`opencode run`)
 
-If none are installed, it falls back to template-based narratives — you still get a full report, just without the storytelling.
+If none are installed, it falls back to template-based narratives — you still get a full report, just without the AI storytelling.
 
 ### Example narrative
 

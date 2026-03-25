@@ -26,24 +26,29 @@ const JSON_SCHEMA = JSON.stringify({
 
 // ── AI CLI chain: try each in order, use first available ──
 
+const EXEC_OPTS = { encoding: 'utf-8', timeout: 120000, maxBuffer: 4 * 1024 * 1024 };
+const CHECK_OPTS = { encoding: 'utf-8', timeout: 5000, stdio: ['pipe', 'pipe', 'pipe'] };
+
 const AI_CLIS = [
   {
     name: 'Claude Code',
-    cmd: 'claude',
-    check: () => execFileSync('claude', ['--version'], { encoding: 'utf-8', timeout: 5000, stdio: ['pipe', 'pipe', 'pipe'] }),
-    run: (prompt) => execFileSync('claude', ['-p'], { input: prompt, encoding: 'utf-8', timeout: 120000, maxBuffer: 4 * 1024 * 1024 }),
+    check: () => execFileSync('claude', ['--version'], CHECK_OPTS),
+    run: (prompt) => execFileSync('claude', ['-p'], { ...EXEC_OPTS, input: prompt }),
   },
   {
     name: 'Codex',
-    cmd: 'codex',
-    check: () => execFileSync('codex', ['--version'], { encoding: 'utf-8', timeout: 5000, stdio: ['pipe', 'pipe', 'pipe'] }),
-    run: (prompt) => execFileSync('codex', ['exec', '-'], { input: prompt, encoding: 'utf-8', timeout: 120000, maxBuffer: 4 * 1024 * 1024 }),
+    check: () => execFileSync('codex', ['--version'], CHECK_OPTS),
+    run: (prompt) => execFileSync('codex', ['exec', '-'], { ...EXEC_OPTS, input: prompt }),
   },
   {
     name: 'Gemini CLI',
-    cmd: 'gemini',
-    check: () => execFileSync('gemini', ['--version'], { encoding: 'utf-8', timeout: 5000, stdio: ['pipe', 'pipe', 'pipe'] }),
-    run: (prompt) => execFileSync('gemini', ['-p', prompt], { encoding: 'utf-8', timeout: 120000, maxBuffer: 4 * 1024 * 1024 }),
+    check: () => execFileSync('gemini', ['--version'], CHECK_OPTS),
+    run: (prompt) => execFileSync('gemini', ['-p', prompt], EXEC_OPTS),
+  },
+  {
+    name: 'OpenCode',
+    check: () => execFileSync('opencode', ['--version'], CHECK_OPTS),
+    run: (prompt) => execFileSync('opencode', ['run', prompt], EXEC_OPTS),
   },
 ];
 

@@ -38,11 +38,12 @@ export function generateHtml(data: ReportData): string {
 <title>${esc(mast.title)} — ${esc(rangeLabel)}</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
   :root {
+    /* ── Color tokens ── */
     --bg: oklch(0.09 0.005 270);
     --bg-card: oklch(0.12 0.005 270);
     --fg: oklch(0.88 0 0);
@@ -55,80 +56,92 @@ export function generateHtml(data: ReportData): string {
     --chart-med: oklch(0.65 0.12 75);
     --chart-low: oklch(0.50 0.08 75);
     --chart-min: oklch(0.30 0.04 75);
-    --serif: 'Instrument Serif', Georgia, 'Times New Roman', serif;
-    --sans: 'Inter', -apple-system, system-ui, sans-serif;
+
+    /* ── Type families ── */
+    --display: 'Instrument Serif', Georgia, 'Times New Roman', serif;
+    --body: 'Source Serif 4', Georgia, 'Times New Roman', serif;
     --mono: 'JetBrains Mono', 'SF Mono', 'Fira Code', monospace;
+
+    /* ── Type scale (1.25 ratio, rem-based) ── */
+    --text-xs: 0.64rem;     /* 10.2px — chart axis, micro labels */
+    --text-sm: 0.8rem;      /* 12.8px — meta, captions, badges */
+    --text-base: 1rem;      /* 16px — body text */
+    --text-md: 1.125rem;    /* 18px — spotlight headers */
+    --text-lg: 1.25rem;     /* 20px — KPI values */
+    --text-xl: clamp(1.5rem, 3.5vw, 2rem);    /* 24-32px — headline */
+    --text-2xl: clamp(2rem, 5vw, 3rem);        /* 32-48px — masthead */
   }
 
   body {
     background: var(--bg);
     color: var(--fg);
-    font-family: var(--sans);
-    font-size: 14px;
-    line-height: 1.6;
+    font-family: var(--body);
+    font-size: var(--text-base);
+    line-height: 1.7;
     -webkit-font-smoothing: antialiased;
+    font-kerning: normal;
   }
 
-  .page { max-width: 900px; margin: 0 auto; padding: 2rem 1.5rem 4rem; }
+  .page { max-width: 55rem; margin: 0 auto; padding: 2rem 1.5rem 4rem; }
 
   /* ── Masthead ── */
   .masthead {
     text-align: center;
-    padding: 1.5rem 0 1rem;
+    padding: 1.75rem 0 1.25rem;
     border-top: 3px double var(--border-strong);
     border-bottom: 3px double var(--border-strong);
-    margin-bottom: 1.5rem;
+    margin-bottom: 2rem;
   }
   .masthead-meta {
     display: flex;
     justify-content: space-between;
     font-family: var(--mono);
-    font-size: 10px;
+    font-size: var(--text-xs);
     color: var(--fg-dim);
-    letter-spacing: 0.05em;
+    letter-spacing: 0.08em;
     margin-bottom: 0.75rem;
   }
   .masthead h1 {
-    font-family: var(--serif);
-    font-size: clamp(2rem, 5vw, 3rem);
+    font-family: var(--display);
+    font-size: var(--text-2xl);
     font-weight: 400;
-    letter-spacing: 0.2em;
+    letter-spacing: 0.18em;
     text-transform: uppercase;
-    line-height: 1.1;
+    line-height: 1.05;
   }
   .masthead-tagline {
-    font-family: var(--serif);
+    font-family: var(--display);
     font-style: italic;
-    font-size: 13px;
+    font-size: var(--text-sm);
     color: var(--fg-muted);
-    margin-top: 0.25rem;
+    margin-top: 0.35rem;
   }
   .masthead-date {
     font-family: var(--mono);
-    font-size: 11px;
+    font-size: var(--text-xs);
     color: var(--fg-dim);
-    margin-top: 0.5rem;
-    letter-spacing: 0.08em;
+    margin-top: 0.6rem;
+    letter-spacing: 0.1em;
   }
 
   /* ── Headline ── */
   .headline {
     text-align: center;
-    padding: 1.25rem 0;
+    padding: 1.5rem 0;
     border-bottom: 1px solid var(--border);
-    margin-bottom: 1.5rem;
+    margin-bottom: 2rem;
   }
   .headline h2 {
-    font-family: var(--serif);
-    font-size: clamp(1.5rem, 4vw, 2.5rem);
+    font-family: var(--display);
+    font-size: var(--text-xl);
     font-weight: 400;
     line-height: 1.15;
-    margin-bottom: 0.25rem;
+    margin-bottom: 0.3rem;
   }
   .headline p {
-    font-family: var(--serif);
+    font-family: var(--display);
     font-style: italic;
-    font-size: 15px;
+    font-size: var(--text-base);
     color: var(--fg-muted);
   }
 
@@ -138,84 +151,86 @@ export function generateHtml(data: ReportData): string {
     flex-wrap: wrap;
     gap: 1px;
     background: var(--border);
-    margin-bottom: 1.5rem;
+    margin-bottom: 2rem;
   }
   .kpi-strip .kpi {
     background: var(--bg);
-    padding: 0.6rem 0.8rem;
-    flex: 1 1 120px;
+    padding: 0.75rem 1rem;
+    flex: 1 1 7.5rem;
     text-align: center;
     min-width: 0;
   }
   .kpi-strip .kpi-value {
     font-family: var(--mono);
-    font-size: 1.1rem;
-    font-weight: 600;
+    font-size: var(--text-lg);
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
   }
   .kpi-strip .kpi-label {
     font-family: var(--mono);
-    font-size: 10px;
+    font-size: var(--text-xs);
     color: var(--fg-muted);
     text-transform: uppercase;
-    letter-spacing: 0.08em;
-    margin-top: 2px;
+    letter-spacing: 0.1em;
+    margin-top: 0.15rem;
   }
 
   /* ── Articles ── */
   .article { margin-bottom: 2.5rem; }
   .article h3 {
     font-family: var(--mono);
-    font-size: 10px;
-    font-weight: 600;
+    font-size: var(--text-xs);
+    font-weight: 700;
     letter-spacing: 0.15em;
     text-transform: uppercase;
     color: var(--accent);
-    margin-bottom: 0.5rem;
-    padding-bottom: 0.25rem;
+    margin-bottom: 0.6rem;
+    padding-bottom: 0.3rem;
     border-bottom: 1px solid var(--border);
   }
   .article-body {
-    font-family: var(--serif);
-    font-size: 15px;
+    font-family: var(--body);
+    font-size: var(--text-base);
     line-height: 1.75;
     color: var(--fg);
+    max-width: 65ch;
   }
-  .article-body p { margin-bottom: 0.75rem; }
+  .article-body p { margin-bottom: 0.85rem; }
 
   /* ── Lead story drop cap ── */
   .lead-story .article-body p:first-child::first-letter {
-    font-family: var(--serif);
-    font-size: 3.2em;
+    font-family: var(--display);
+    font-size: 3.5em;
     float: left;
-    line-height: 0.8;
-    padding-right: 0.08em;
-    padding-top: 0.05em;
+    line-height: 0.78;
+    padding-right: 0.06em;
+    padding-top: 0.04em;
     color: var(--accent);
   }
 
   /* ── Project spotlights ── */
   .spotlights {
     column-count: 2;
-    column-gap: 2rem;
+    column-gap: 2.5rem;
     column-rule: 1px solid var(--border);
   }
   @media (max-width: 768px) { .spotlights { column-count: 1; } }
-  .spotlight { break-inside: avoid; margin-bottom: 1.5rem; }
+  .spotlight { break-inside: avoid; margin-bottom: 1.75rem; }
   .spotlight h4 {
-    font-family: var(--serif);
-    font-size: 1.1rem;
+    font-family: var(--display);
+    font-size: var(--text-md);
     font-weight: 400;
-    margin-bottom: 0.25rem;
+    margin-bottom: 0.15rem;
   }
   .spotlight-meta {
     font-family: var(--mono);
-    font-size: 10px;
+    font-size: var(--text-xs);
     color: var(--fg-dim);
-    margin-bottom: 0.4rem;
+    margin-bottom: 0.5rem;
   }
   .spotlight-body {
-    font-family: var(--serif);
-    font-size: 14px;
+    font-family: var(--body);
+    font-size: 0.9375rem;
     line-height: 1.7;
     color: var(--fg-muted);
   }
@@ -223,29 +238,29 @@ export function generateHtml(data: ReportData): string {
   /* ── Data aside ── */
   .data-aside {
     background: var(--bg-card);
-    padding: 1rem;
-    margin: 1rem 0;
+    padding: 1rem 1.25rem;
+    margin: 1.25rem 0;
   }
   .data-aside-label {
     font-family: var(--mono);
-    font-size: 10px;
+    font-size: var(--text-xs);
     color: var(--fg-dim);
     text-transform: uppercase;
     letter-spacing: 0.1em;
-    margin-bottom: 0.5rem;
+    margin-bottom: 0.6rem;
   }
 
   /* ── Bar chart ── */
   .bar-row {
     display: flex;
     align-items: center;
-    gap: 0.4rem;
-    margin-bottom: 0.25rem;
+    gap: 0.5rem;
+    margin-bottom: 0.3rem;
     font-family: var(--mono);
-    font-size: 11px;
+    font-size: var(--text-sm);
   }
   .bar-label {
-    width: 80px;
+    width: 5.5rem;
     flex-shrink: 0;
     color: var(--fg-muted);
     text-align: right;
@@ -253,13 +268,14 @@ export function generateHtml(data: ReportData): string {
     text-overflow: ellipsis;
     white-space: nowrap;
   }
-  .bar-track { flex: 1; height: 12px; }
+  .bar-track { flex: 1; height: 0.75rem; }
   .bar-fill { height: 100%; min-width: 3px; }
   .bar-value {
-    width: 35px;
+    width: 2.5rem;
     flex-shrink: 0;
     color: var(--fg-dim);
-    font-size: 10px;
+    font-size: var(--text-xs);
+    font-variant-numeric: tabular-nums;
   }
 
   /* ── Hourly chart ── */
@@ -267,17 +283,17 @@ export function generateHtml(data: ReportData): string {
     display: flex;
     align-items: flex-end;
     gap: 2px;
-    height: 50px;
-    margin: 0.4rem 0;
+    height: 3.25rem;
+    margin: 0.5rem 0;
   }
   .hourly-bar { flex: 1; min-width: 0; }
   .hourly-labels {
     display: flex;
     justify-content: space-between;
     font-family: var(--mono);
-    font-size: 9px;
+    font-size: var(--text-xs);
     color: var(--fg-dim);
-    margin-top: 0.2rem;
+    margin-top: 0.25rem;
   }
 
   /* ── Daily breakdown ── */
@@ -285,8 +301,8 @@ export function generateHtml(data: ReportData): string {
     display: flex;
     align-items: flex-end;
     gap: 3px;
-    height: 40px;
-    margin: 0.4rem 0;
+    height: 2.75rem;
+    margin: 0.5rem 0;
   }
   .daily-bar-wrap {
     flex: 1;
@@ -295,32 +311,33 @@ export function generateHtml(data: ReportData): string {
     align-items: center;
     gap: 2px;
   }
-  .daily-bar-val { font-family: var(--mono); font-size: 9px; color: var(--fg-dim); }
-  .daily-bar-label { font-family: var(--mono); font-size: 9px; color: var(--fg-dim); }
+  .daily-bar-val { font-family: var(--mono); font-size: var(--text-xs); color: var(--fg-dim); font-variant-numeric: tabular-nums; }
+  .daily-bar-label { font-family: var(--mono); font-size: var(--text-xs); color: var(--fg-dim); }
 
   /* ── Divider ── */
   .divider {
     text-align: center;
     color: var(--fg-dim);
-    font-size: 12px;
-    margin: 2rem 0;
+    font-size: var(--text-sm);
+    margin: 2.5rem 0;
     letter-spacing: 0.3em;
   }
 
   /* ── Streak badges ── */
-  .streak-badges { display: flex; gap: 0.5rem; flex-wrap: wrap; margin: 0.5rem 0; }
+  .streak-badges { display: flex; gap: 0.5rem; flex-wrap: wrap; margin: 0.6rem 0; }
   .streak-badge {
     font-family: var(--mono);
-    font-size: 11px;
-    padding: 0.25rem 0.6rem;
+    font-size: var(--text-sm);
+    padding: 0.3rem 0.65rem;
     border: 1px solid var(--border-strong);
     color: var(--fg-muted);
+    font-variant-numeric: tabular-nums;
   }
-  .streak-badge strong { color: var(--fg); }
+  .streak-badge strong { color: var(--fg); font-weight: 700; }
 
   /* ── Footer ── */
   .footer {
-    margin-top: 2rem;
+    margin-top: 2.5rem;
     padding-top: 1rem;
     border-top: 3px double var(--border-strong);
     display: flex;
@@ -328,14 +345,14 @@ export function generateHtml(data: ReportData): string {
     justify-content: space-between;
     gap: 0.5rem;
     font-family: var(--mono);
-    font-size: 10px;
+    font-size: var(--text-xs);
     color: var(--fg-dim);
   }
 
   /* ── Empty state ── */
-  .empty-state { text-align: center; padding: 4rem 2rem; }
-  .empty-state h2 { font-family: var(--serif); font-size: 2rem; margin-bottom: 0.5rem; }
-  .empty-state p { font-family: var(--serif); font-style: italic; color: var(--fg-muted); }
+  .empty-state { text-align: center; padding: 5rem 2rem; }
+  .empty-state h2 { font-family: var(--display); font-size: var(--text-xl); margin-bottom: 0.75rem; }
+  .empty-state p { font-family: var(--body); font-style: italic; color: var(--fg-muted); font-size: var(--text-base); }
 
   /* ── Print ── */
   @media print {
@@ -353,8 +370,8 @@ export function generateHtml(data: ReportData): string {
       --chart-low: #999;
       --chart-min: #ccc;
     }
-    .page { padding: 0; }
-    .bar-fill { opacity: 1 !important; }
+    body { font-size: 11pt; line-height: 1.6; }
+    .page { padding: 0; max-width: none; }
   }
 
   /* ── Reduced motion ── */

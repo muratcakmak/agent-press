@@ -2,8 +2,11 @@
 
 import fs from 'fs';
 import path from 'path';
+import os from 'os';
 import { generateReport } from './report-data.js';
 import { generateHtml } from './report-html.js';
+
+const REPORTS_DIR = path.join(os.homedir(), '.agent-press', 'reports');
 
 const args = process.argv.slice(2);
 
@@ -101,7 +104,8 @@ try {
   console.log(`  ${data.frontPage.sessions} sessions found`);
 
   const html = generateHtml(data);
-  const outPath = path.resolve(opts.filename);
+  fs.mkdirSync(REPORTS_DIR, { recursive: true });
+  const outPath = path.join(REPORTS_DIR, opts.filename);
 
   fs.writeFileSync(outPath, html);
   console.log(`  ✓ Saved: ${outPath}`);

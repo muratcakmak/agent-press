@@ -10,6 +10,17 @@ import type { CliOpts, RangeType } from './types.js';
 const REPORTS_DIR = path.join(os.homedir(), '.agent-press', 'reports');
 
 const args = process.argv.slice(2);
+const VERBOSE = args.includes('--verbose') || args.includes('-v');
+(globalThis as any).__VERBOSE = VERBOSE;
+
+const providerIdx = args.findIndex(a => a === '--provider');
+if (providerIdx !== -1 && args[providerIdx + 1]) {
+  (globalThis as any).__PROVIDER = args[providerIdx + 1];
+}
+const modelIdx = args.findIndex(a => a === '--model');
+if (modelIdx !== -1 && args[modelIdx + 1]) {
+  (globalThis as any).__MODEL = args[modelIdx + 1];
+}
 
 if (args.includes('--help') || args.includes('-h')) {
   console.log(`
@@ -18,15 +29,30 @@ if (args.includes('--help') || args.includes('-h')) {
   Usage: agent-press [options] [YYYY-MM-DD]
 
   Options:
-    (no args)       Yesterday's report (default)
-    YYYY-MM-DD      Report for a specific date
-    --week          Last 7 days
-    --last-week     Previous Monday–Sunday
-    --month         Last calendar month
-    --help, -h      Show this help
+    (no args)          Yesterday's report (default)
+    YYYY-MM-DD         Report for a specific date
+    --week             Last 7 days
+    --last-week        Previous Monday–Sunday
+    --month            Last calendar month
+    --provider ID      AI provider for narratives (default: tries all)
+                       claude-opus, claude-sonnet, codex, gemini, opencode, openrouter
+    --model NAME       Model to use (for openrouter or claude providers)
+    --verbose, -v      Show detailed logs (prompt, response, git, timing)
+    --help, -h         Show this help
+
+  Examples:
+    agent-press                              Yesterday's report
+    agent-press 2026-03-20                   Specific date
+    agent-press --week --provider opencode   Weekly report via OpenCode
+    agent-press --provider openrouter --model google/gemini-2.5-flash:free
+    agent-press --provider claude-sonnet --model claude-sonnet-4-6 -v
 
   Reports saved to ~/.agent-press/reports/
-  AI narratives via: claude, codex, gemini, or opencode CLI
+  AI narratives via: claude, codex, gemini, opencode CLI, or OpenRouter API
+
+  Environment:
+    OPENROUTER_API_KEY    Required for --provider openrouter
+    OPENROUTER_MODEL      Override model (default: anthropic/claude-haiku-4)
 `);
   process.exit(0);
 }

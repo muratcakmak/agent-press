@@ -202,6 +202,8 @@ export async function generateReport(opts: CliOpts): Promise<ReportData> {
   // Build report data first (without narratives)
   const reportData: ReportData = {
     date: endDayStr,
+    dateFrom,
+    dateTo,
     rangeType,
     rangeLabel: label,
     dateFormatted: label,

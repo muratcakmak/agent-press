@@ -117,6 +117,8 @@ export interface NarrativesOutput {
 
 export interface ReportData {
   date: string;
+  dateFrom: number;
+  dateTo: number;
   rangeType: RangeType;
   rangeLabel: string;
   dateFormatted: string;

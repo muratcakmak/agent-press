@@ -17,11 +17,31 @@ npm install -g agent-press
 ## Usage
 
 ```bash
-agent-press                     # today's report
+agent-press                     # yesterday's report (default)
 agent-press 2026-03-24          # specific date
 agent-press --week              # last 7 days
 agent-press --last-week         # previous Mon–Sun
 agent-press --month             # last calendar month
+```
+
+### Pick Your AI Provider
+
+```bash
+agent-press --provider opencode              # use OpenCode directly
+agent-press --provider openrouter            # use OpenRouter API
+agent-press --provider claude-sonnet         # use Claude Sonnet
+agent-press --provider openrouter --model google/gemini-2.5-flash:free  # free model
+```
+
+Available providers: `claude-opus`, `claude-sonnet`, `codex`, `gemini`, `opencode`, `openrouter`
+
+By default, agent-press tries all available providers in order until one succeeds.
+
+### Other Options
+
+```bash
+agent-press --verbose           # detailed logs (prompt, response, git, timing)
+agent-press --help              # show all options
 ```
 
 Reports are saved to `~/.agent-press/reports/` and opened in your browser.
@@ -31,7 +51,7 @@ Reports are saved to `~/.agent-press/reports/` and opened in your browser.
 A newspaper-style HTML report with AI-generated narratives:
 
 - **Lead Story** — a witty summary of your coding day/week/month
-- **Project Spotlights** — what was built in each project, what went well, patterns noticed
+- **Project Spotlights** — what was built in each project, informed by git commit history
 - **The Forecast** — when you code, peak hours, activity trends
 - **The Tool Shed** — which editors and models you used
 - **The Markets** — estimated cost breakdown by editor and model
@@ -54,14 +74,29 @@ Reads session data directly from local storage — no API keys, no cloud, no set
 
 ## AI Narrative Engine
 
-agent-press uses an AI coding CLI to generate the narratives. It tries these in order and uses the first one available:
+agent-press uses AI to generate the narratives. It cascades through providers in order, skipping any that return empty or fail:
 
-1. **Claude Code** — `claude -p`
-2. **Codex** — `codex exec`
-3. **Gemini CLI** — `gemini -p`
-4. **OpenCode** — `opencode run`
+1. **Claude Code (Opus)** — `claude -p`
+2. **Claude Code (Sonnet)** — `claude -p --model claude-sonnet-4-6`
+3. **Codex** — `codex exec`
+4. **Gemini CLI** — `gemini -p`
+5. **OpenCode** — `opencode run`
+6. **OpenRouter** — direct API call (requires `OPENROUTER_API_KEY`)
 
-If none are installed, you still get a full report with template-based narratives.
+Use `--provider` to skip the cascade and pick one directly.
+
+The AI context includes **git commit history** per project, giving the model real data about what was built — not just session titles.
+
+If no AI provider is available, you still get a full report with template-based narratives enriched by git commits.
+
+## Environment Variables
+
+| Variable | Description |
+|----------|-------------|
+| `OPENROUTER_API_KEY` | Required for `--provider openrouter` |
+| `OPENROUTER_MODEL` | Override OpenRouter model (default: `anthropic/claude-haiku-4`) |
+
+The `--model` flag also works and takes precedence over the env var.
 
 ## Built With
 
@@ -73,7 +108,7 @@ If none are installed, you still get a full report with template-based narrative
 
 - Node.js 18+
 - At least one supported editor with session history
-- (Optional) An AI CLI for richer narratives
+- (Optional) An AI CLI or OpenRouter API key for richer narratives
 
 ## License
 

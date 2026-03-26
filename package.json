@@ -1,6 +1,6 @@
 {
   "name": "agent-press",
-  "version": "0.0.5",
+  "version": "0.0.6",
   "description": "Newspaper-style daily reports for your AI coding sessions. Reads from Claude Code, Cursor, OpenCode, and Antigravity.",
   "type": "module",
   "bin": {
